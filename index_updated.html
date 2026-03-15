@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cesium 3D Parcels</title>
+
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+<style>
+html, body, #cesiumContainer {
+width: 100%;
+height: 100%;
+margin: 0;
+padding: 0;
+overflow: hidden;
+}
+
+#legend {
+position: absolute;
+top: 10px;
+left: 10px;
+background: rgba(255,255,255,0.95);
+padding: 10px;
+border-radius: 6px;
+font-family: Arial;
+color: black;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="cesiumContainer"></div>
+<div id="legend"><b>Floor Legend</b></div>
+
+<script>
+
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2ZGNhYTEzZi00NDc3LTRkYzQtYWM5NS0xMmI1YzhlN2EyOGEiLCJpZCI6NDAxODk2LCJpYXQiOjE3NzMyOTc3NjN9.exM54gRWZv-AdeJFUHmljwkv6WiQgjw_6KrSHeT-adM";
+
+
+const viewer = new Cesium.Viewer("cesiumContainer",{
+terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+infoBox:true,
+selectionIndicator:true
+});
+
+const legend = document.getElementById("legend");
+
+async function loadData(){
+
+try{
+
+const resource = await Cesium.IonResource.fromAssetId(4532140);
+
+const dataSource = await Cesium.GeoJsonDataSource.load(resource,{
+clampToGround:false
+});
+
+viewer.dataSources.add(dataSource);
+viewer.zoomTo(dataSource);
+
+const entities = dataSource.entities.values;
+const legendMap = {};
+
+for(let i=0;i<entities.length;i++){
+
+const entity = entities[i];
+
+if(entity.polygon && entity.properties){
+
+const height = entity.properties.height_m ?
+entity.properties.height_m.getValue() : 10;
+
+entity.polygon.extrudedHeight = height;
+entity.polygon.height = 0;
+
+let floorCls = entity.properties.floor_cls ?
+entity.properties.floor_cls.getValue().toString().toLowerCase() : "";
+
+let floorLabel = "Shed/Miscellaneous";
+
+if(floorCls.includes("1")) floorLabel="1st Floor";
+else if(floorCls.includes("2")) floorLabel="2nd Floor";
+else if(floorCls.includes("3")) floorLabel="3rd Floor";
+
+let colorStr = entity.properties.color ?
+entity.properties.color.getValue() : "#AAAAAA";
+
+if(colorStr.toLowerCase()=="yellow" || colorStr=="#FFFF00"){
+colorStr="#C0C0C0";
+}
+
+const color = Cesium.Color.fromCssColorString(colorStr);
+
+entity.polygon.material=color;
+
+entity.polygon.outline=true;
+entity.polygon.outlineColor=Cesium.Color.BLACK;
+
+entity.label = new Cesium.LabelGraphics({
+text: floorLabel,
+font:"14px sans-serif",
+fillColor:Cesium.Color.BLACK,
+style:Cesium.LabelStyle.FILL_AND_OUTLINE,
+outlineColor:Cesium.Color.WHITE,
+outlineWidth:2,
+verticalOrigin:Cesium.VerticalOrigin.BOTTOM,
+pixelOffset:new Cesium.Cartesian2(0,-5),
+disableDepthTestDistance:Number.POSITIVE_INFINITY
+});
+
+if(!legendMap[floorLabel]){
+legendMap[floorLabel]=colorStr;
+}
+
+}
+
+}
+
+Object.keys(legendMap).forEach(label=>{
+
+const row=document.createElement("div");
+row.style.display="flex";
+row.style.alignItems="center";
+row.style.marginBottom="6px";
+
+const box=document.createElement("div");
+box.style.width="20px";
+box.style.height="20px";
+box.style.background=legendMap[label];
+box.style.marginRight="6px";
+box.style.border="1px solid black";
+
+const text=document.createElement("span");
+text.textContent=label;
+
+row.appendChild(box);
+row.appendChild(text);
+
+legend.appendChild(row);
+
+});
+
+}
+
+catch(error){
+console.log(error);
+}
+
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>
